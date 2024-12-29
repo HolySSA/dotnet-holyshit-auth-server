@@ -1,8 +1,11 @@
 using System.Text;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using LoginServer.Constants;
 using LoginServer.Data;
 using LoginServer.Services.Implementations;
 using LoginServer.Services.Interfaces;
+using LoginServer.Utils;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -40,6 +43,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
         ClockSkew = TimeSpan.Zero
     };
 });
+
+builder.Services.AddFluentValidationAutoValidation().AddFluentValidationClientsideAdapters();
+builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
 
 // Swagger 설정
 builder.Services.AddSwaggerGen(c =>

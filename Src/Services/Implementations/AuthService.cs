@@ -25,6 +25,36 @@ public class AuthService : IAuthService
     _configuration = configuration;
   }
 
+  public async Task<bool> RegisterAsync(RegisterRequestDto request)
+  {
+    // 이메일 중복 확인
+    if (await _context.Users.AnyAsync(u => u.Email == request.Email))
+      throw new Exception("Email already exists");
+
+    // 닉네임 중복 확인
+    if (await _context.Users.AnyAsync(u => u.Nickname == request.Nickname))
+      throw new Exception("Nickname already exists");
+
+    // 비밀번호 해시
+    var passwordHash = HashPassword(request.Password);
+
+    // 유저 생성
+    var user = new User
+    {
+      Email = request.Email,
+      Nickname = request.Nickname,
+      PasswordHash = passwordHash,
+      IsActive = true,
+      CreatedAt = DateTime.UtcNow
+    };
+
+    // DB 유저 저장
+    await _context.Users.AddAsync(user);
+    await _context.SaveChangesAsync();
+
+    return true;
+  }
+
   public async Task<LoginResponseDto> LoginAsync(LoginRequestDto request)
   {
     // 로그인 시도 횟수 확인

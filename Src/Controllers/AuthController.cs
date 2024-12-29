@@ -20,6 +20,32 @@ public class AuthController : ControllerBase
   }
 
   /// <summary>
+  /// 회원가입 API
+  /// POST: api/auth/register
+  /// </summary>
+  [HttpPost("register")]
+  [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  public async Task<ActionResult<bool>> Register([FromBody] RegisterRequestDto request)
+  {
+    try
+    {
+      _logger.LogInformation("Register attempt for user: {Email}", request.Email);
+      
+      await _authService.RegisterAsync(request);
+      
+      _logger.LogInformation("Register successful for user: {Email}", request.Email);
+      return Ok(new { message = "Registration successful" });
+    }
+    catch (Exception ex)
+    {
+      _logger.LogWarning("Register failed for user: {Email}, Reason: {Message}", request.Email, ex.Message);
+          
+      return BadRequest(new { message = ex.Message });
+    }
+  }
+
+  /// <summary>
   /// 로그인 API
   /// POST: api/auth/login
   /// </summary>
