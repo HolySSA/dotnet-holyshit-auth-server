@@ -47,6 +47,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
 builder.Services.AddFluentValidationAutoValidation().AddFluentValidationClientsideAdapters();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
 
+// FluentValidation 검증 실패 시 ErrorResponseDto 응답
+builder.Services.AddControllers(options =>
+{
+  options.Filters.Add<ValidationFailureResponse>();
+});
+
 // Swagger 설정
 builder.Services.AddSwaggerGen(c =>
 {

@@ -41,7 +41,7 @@ public class AuthController : ControllerBase
     {
       _logger.LogWarning("Register failed for user: {Email}, Reason: {Message}", request.Email, ex.Message);
           
-      return BadRequest(new { message = ex.Message });
+      return BadRequest(new ErrorResponseDto { Message = ex.Message });
     }
   }
 

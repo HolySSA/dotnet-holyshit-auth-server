@@ -29,11 +29,11 @@ public class AuthService : IAuthService
   {
     // 이메일 중복 확인
     if (await _context.Users.AnyAsync(u => u.Email == request.Email))
-      throw new Exception("Email already exists");
+      throw new Exception("이미 존재하는 이메일입니다.");
 
     // 닉네임 중복 확인
     if (await _context.Users.AnyAsync(u => u.Nickname == request.Nickname))
-      throw new Exception("Nickname already exists");
+      throw new Exception("이미 존재하는 닉네임입니다.");
 
     // 비밀번호 해시
     var passwordHash = HashPassword(request.Password);
@@ -63,7 +63,7 @@ public class AuthService : IAuthService
 
     if ((attempts ?? 0) >= SecurityConstants.MAX_LOGIN_ATTEMPTS)
     {
-      throw new Exception("Too many login attempts. Please try again later.");
+      throw new Exception("너무 많은 로그인 시도가 있습니다. 나중에 다시 시도해주세요.");
     }
 
     // DB에서 유저 확인
@@ -75,7 +75,7 @@ public class AuthService : IAuthService
       await _cacheService.SetAsync(loginAttemptKey, (attempts ?? 0) + 1,
         TimeSpan.FromMinutes(SecurityConstants.LOGIN_LOCKOUT_MINUTES));
       
-      throw new Exception("Invalid email or password");
+      throw new Exception("이메일 또는 비밀번호가 올바르지 않습니다.");
     }
 
     // 로그인 성공 시 Redis에서 시도 횟수 삭제
