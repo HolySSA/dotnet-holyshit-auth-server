@@ -24,9 +24,9 @@ public class AuthController : ControllerBase
   /// POST: api/auth/register
   /// </summary>
   [HttpPost("register")]
-  [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
+  [ProducesResponseType(typeof(RegisterResponseDto), StatusCodes.Status200OK)]
   [ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
-  public async Task<ActionResult<bool>> Register([FromBody] RegisterRequestDto request)
+  public async Task<ActionResult<RegisterResponseDto>> Register([FromBody] RegisterRequestDto request)
   {
     try
     {
@@ -35,7 +35,7 @@ public class AuthController : ControllerBase
       await _authService.RegisterAsync(request);
       
       _logger.LogInformation("Register successful for user: {Email}", request.Email);
-      return Ok(true);
+      return Ok(new RegisterResponseDto { Success = true, Message = "회원가입에 성공하셨습니다!" });
     }
     catch (Exception ex)
     {
