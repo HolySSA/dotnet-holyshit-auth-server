@@ -9,6 +9,8 @@ using LoginServer.Models.DTOs;
 using LoginServer.Models.Entities;
 using Microsoft.EntityFrameworkCore;
 using static BCrypt.Net.BCrypt;
+using LoginServer.Models.Settings;
+using Microsoft.Extensions.Options;
 
 namespace LoginServer.Services.Implementations;
 
@@ -16,13 +18,13 @@ public class AuthService : IAuthService
 {
   private readonly ApplicationDbContext _context; // DB 컨텍스트
   private readonly ICacheService _cacheService; // Redis 캐시 서비스
-  private readonly IConfiguration _configuration; // 설정 정보
+  private readonly JwtSettings _jwtSettings; // JWT 설정
 
-  public AuthService(ApplicationDbContext context, ICacheService cacheService, IConfiguration configuration)
+  public AuthService(ApplicationDbContext context, ICacheService cacheService, IOptions<JwtSettings> jwtSettings)
   {
     _context = context;
     _cacheService = cacheService;
-    _configuration = configuration;
+    _jwtSettings = jwtSettings.Value;
   }
 
   public async Task<bool> RegisterAsync(RegisterRequestDto request)
@@ -58,10 +60,10 @@ public class AuthService : IAuthService
   public async Task<LoginResponseDto> LoginAsync(LoginRequestDto request)
   {
     // 로그인 시도 횟수 확인 - Redis
-    var loginAttemptKey = $"login_attempt:{request.Email}";
+    var loginAttemptKey = string.Format(RedisConstants.LOGIN_ATTEMPT_KEY_FORMAT, request.Email);
     var attempts = await _cacheService.GetAsync<int?>(loginAttemptKey);
 
-    if ((attempts ?? 0) >= SecurityConstants.MAX_LOGIN_ATTEMPTS)
+    if ((attempts ?? 0) >= RedisConstants.MAX_LOGIN_ATTEMPTS)
       throw new Exception("너무 많은 로그인 시도가 있습니다. 나중에 다시 시도해주세요.");
 
     // 유저 검증 - PostgreSQL
@@ -69,8 +71,7 @@ public class AuthService : IAuthService
     if (user == null || !VerifyPassword(request.Password, user.PasswordHash))
     {
       // 실패 시 로그인 시도 횟수 증가 - Redis
-      await _cacheService.SetAsync(loginAttemptKey, (attempts ?? 0) + 1,
-        TimeSpan.FromMinutes(SecurityConstants.LOGIN_LOCKOUT_MINUTES));
+      await _cacheService.SetAsync(loginAttemptKey, (attempts ?? 0) + 1, TimeSpan.FromMinutes(RedisConstants.LOGIN_LOCKOUT_MINUTES));
       
       throw new Exception("이메일 또는 비밀번호가 올바르지 않습니다.");
     }
@@ -87,32 +88,32 @@ public class AuthService : IAuthService
 
     // 유저 세션 저장 - Redis
     await _cacheService.SetAsync(
-      $"session:{user.Email}", // 키
+      string.Format(RedisConstants.SESSION_KEY_FORMAT, user.Email), // 키
       new { Token = token, LastActivity = DateTime.UtcNow }, // 값
-      TimeSpan.FromHours(SecurityConstants.JWT_EXPIRATION_HOURS) // 만료 시간
+      TimeSpan.FromHours(_jwtSettings.ExpirationHours) // 만료 시간
     );
 
     // 클라이언트에 응답
     return new LoginResponseDto
     {
-      Token = token,
       Email = user.Email,
       Nickname = user.Nickname,
-      ExpiresAt = DateTime.UtcNow.AddHours(SecurityConstants.JWT_EXPIRATION_HOURS)
+      Token = token,
+      ExpiresAt = DateTime.UtcNow.AddHours(_jwtSettings.ExpirationHours)
     };
   }
 
   public async Task<bool> ValidateTokenAsync(string token)
   {
     // 토큰 블랙리스트 확인
-    var isBlacklisted = await _cacheService.ExistsAsync($"blacklist:{token}");
+    var isBlacklisted = await _cacheService.ExistsAsync(string.Format(RedisConstants.BLACKLIST_KEY_FORMAT, token));
     if (isBlacklisted)
       return false;
 
     try
     {
       var tokenHandler = new JwtSecurityTokenHandler();
-      var key = Encoding.ASCII.GetBytes(SecurityConstants.JWT_SECRET_KEY);
+      var key = Encoding.ASCII.GetBytes(_jwtSettings.SecretKey);
 
       tokenHandler.ValidateToken(token, new TokenValidationParameters
       {
@@ -120,8 +121,8 @@ public class AuthService : IAuthService
         IssuerSigningKey = new SymmetricSecurityKey(key),
         ValidateIssuer = true,
         ValidateAudience = true,
-        ValidIssuer = SecurityConstants.JWT_ISSUER,
-        ValidAudience = SecurityConstants.JWT_AUDIENCE,
+        ValidIssuer = _jwtSettings.Issuer,
+        ValidAudience = _jwtSettings.Audience,
         ClockSkew = TimeSpan.Zero
       }, out _);
 
@@ -140,17 +141,17 @@ public class AuthService : IAuthService
         ?? throw new Exception("User not found");
 
     // Redis에서 유저 세션 삭제
-    await _cacheService.RemoveAsync($"session:{user.Email}");
+    await _cacheService.RemoveAsync(string.Format(RedisConstants.SESSION_KEY_FORMAT, user.Email));
     
     // 현재 토큰을 블랙리스트에 추가
-    var sessionKey = $"session:{user.Email}";
+    var sessionKey = string.Format(RedisConstants.SESSION_KEY_FORMAT, user.Email);
     var session = await _cacheService.GetAsync<dynamic>(sessionKey);
     if (session != null)
     {
       await _cacheService.SetAsync(
-        $"blacklist:{session.Token}", 
+        string.Format(RedisConstants.BLACKLIST_KEY_FORMAT, session.Token), 
         true,
-        TimeSpan.FromHours(SecurityConstants.JWT_EXPIRATION_HOURS)
+        TimeSpan.FromHours(_jwtSettings.ExpirationHours)
       );
     }
   }
@@ -158,7 +159,7 @@ public class AuthService : IAuthService
   private string GenerateJwtToken(User user)
   {
     var tokenHandler = new JwtSecurityTokenHandler();
-    var key = Encoding.ASCII.GetBytes(SecurityConstants.JWT_SECRET_KEY);
+    var key = Encoding.ASCII.GetBytes(_jwtSettings.SecretKey);
 
     var tokenDescriptor = new SecurityTokenDescriptor
     {
@@ -168,10 +169,10 @@ public class AuthService : IAuthService
         new Claim(ClaimTypes.Name, user.Nickname),
         new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
       }),
-      Expires = DateTime.UtcNow.AddHours(SecurityConstants.JWT_EXPIRATION_HOURS),
+      Expires = DateTime.UtcNow.AddHours(_jwtSettings.ExpirationHours),
       SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
-      Issuer = SecurityConstants.JWT_ISSUER,
-      Audience = SecurityConstants.JWT_AUDIENCE
+      Issuer = _jwtSettings.Issuer,
+      Audience = _jwtSettings.Audience
     };
 
     var token = tokenHandler.CreateToken(tokenDescriptor);

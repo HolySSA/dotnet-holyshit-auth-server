@@ -1,5 +1,6 @@
 using LoginServer.Middleware;
 using LoginServer.Extensions;
+using LoginServer.Models.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services
     .AddDatabase(builder.Configuration)
     .AddRedisCache(builder.Configuration)
-    .AddAuthenticationServices()
+    .AddAuthenticationServices(builder.Configuration)
     .AddValidation()
     .AddSwaggerServices();
 

@@ -11,17 +11,17 @@ public class FluentValidationFilter : IAsyncActionFilter
   {
     if (!context.ModelState.IsValid)
     {
-        var errors = context.ModelState
-          .Values
-          .SelectMany(v => v.Errors)
-          .Select(e => e.ErrorMessage)
-          .FirstOrDefault();
+      var errors = context.ModelState
+        .Values
+        .SelectMany(v => v.Errors)
+        .Select(e => e.ErrorMessage)
+        .FirstOrDefault();
 
-        context.Result = new BadRequestObjectResult(new ErrorResponseDto 
-        { 
-          Message = errors ?? "Validation failed" 
-        });
-        return;
+      context.Result = new BadRequestObjectResult(new ErrorResponseDto 
+      { 
+        Message = errors ?? "Validation failed" 
+      });
+      return;
     }
 
     await next();
