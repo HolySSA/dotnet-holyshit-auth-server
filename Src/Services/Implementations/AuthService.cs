@@ -57,28 +57,25 @@ public class AuthService : IAuthService
 
   public async Task<LoginResponseDto> LoginAsync(LoginRequestDto request)
   {
-    // 로그인 시도 횟수 확인
+    // 로그인 시도 횟수 확인 - Redis
     var loginAttemptKey = $"login_attempt:{request.Email}";
     var attempts = await _cacheService.GetAsync<int?>(loginAttemptKey);
 
     if ((attempts ?? 0) >= SecurityConstants.MAX_LOGIN_ATTEMPTS)
-    {
       throw new Exception("너무 많은 로그인 시도가 있습니다. 나중에 다시 시도해주세요.");
-    }
 
-    // DB에서 유저 확인
+    // 유저 검증 - PostgreSQL
     var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
-    // 유저 X or 비밀번호 일치 X
     if (user == null || !VerifyPassword(request.Password, user.PasswordHash))
     {
-      // 실패한 로그인 시도 횟수 증가(시도 횟수 유지하면서)
+      // 실패 시 로그인 시도 횟수 증가 - Redis
       await _cacheService.SetAsync(loginAttemptKey, (attempts ?? 0) + 1,
         TimeSpan.FromMinutes(SecurityConstants.LOGIN_LOCKOUT_MINUTES));
       
       throw new Exception("이메일 또는 비밀번호가 올바르지 않습니다.");
     }
 
-    // 로그인 성공 시 Redis에서 시도 횟수 삭제
+    // 로그인 성공 시 시도 횟수 제거 - Redis
     await _cacheService.RemoveAsync(loginAttemptKey);
 
     // 마지막 로그인 시간 업데이트
@@ -88,11 +85,11 @@ public class AuthService : IAuthService
     // JWT 토큰 생성
     var token = GenerateJwtToken(user);
 
-    // Redis에 유저 세션 저장
+    // 유저 세션 저장 - Redis
     await _cacheService.SetAsync(
-      $"session:{user.Email}", 
-      new { Token = token, LastActivity = DateTime.UtcNow },
-      TimeSpan.FromHours(SecurityConstants.JWT_EXPIRATION_HOURS)
+      $"session:{user.Email}", // 키
+      new { Token = token, LastActivity = DateTime.UtcNow }, // 값
+      TimeSpan.FromHours(SecurityConstants.JWT_EXPIRATION_HOURS) // 만료 시간
     );
 
     // 클라이언트에 응답

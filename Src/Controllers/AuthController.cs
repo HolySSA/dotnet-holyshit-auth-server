@@ -25,7 +25,7 @@ public class AuthController : ControllerBase
   /// </summary>
   [HttpPost("register")]
   [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
-  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  [ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
   public async Task<ActionResult<bool>> Register([FromBody] RegisterRequestDto request)
   {
     try
@@ -35,7 +35,7 @@ public class AuthController : ControllerBase
       await _authService.RegisterAsync(request);
       
       _logger.LogInformation("Register successful for user: {Email}", request.Email);
-      return Ok(new { message = "Registration successful" });
+      return Ok(true);
     }
     catch (Exception ex)
     {
@@ -51,7 +51,7 @@ public class AuthController : ControllerBase
   /// </summary>
   [HttpPost("login")]
   [ProducesResponseType(typeof(LoginResponseDto), StatusCodes.Status200OK)]
-  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  [ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
   public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginRequestDto request)
   {
     try
@@ -68,7 +68,7 @@ public class AuthController : ControllerBase
       _logger.LogWarning("Login failed for user: {Email}, Reason: {Message}", 
           request.Email, ex.Message);
           
-      return BadRequest(new { message = ex.Message });
+      return BadRequest(new ErrorResponseDto { Message = ex.Message });
     }
   }
 
