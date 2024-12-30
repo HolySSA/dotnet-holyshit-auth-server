@@ -19,12 +19,18 @@ public class AuthService : IAuthService
   private readonly ApplicationDbContext _context; // DB 컨텍스트
   private readonly ICacheService _cacheService; // Redis 캐시 서비스
   private readonly JwtSettings _jwtSettings; // JWT 설정
+  private readonly LobbyServerSettings _lobbyServerSettings; // 로비 서버 설정
 
-  public AuthService(ApplicationDbContext context, ICacheService cacheService, IOptions<JwtSettings> jwtSettings)
+  public AuthService(
+    ApplicationDbContext context,
+    ICacheService cacheService,
+    IOptions<JwtSettings> jwtSettings,
+    IOptions<LobbyServerSettings> lobbyServerSettings)
   {
     _context = context;
     _cacheService = cacheService;
     _jwtSettings = jwtSettings.Value;
+    _lobbyServerSettings = lobbyServerSettings.Value;
   }
 
   public async Task<bool> RegisterAsync(RegisterRequestDto request)
@@ -99,7 +105,9 @@ public class AuthService : IAuthService
       Email = user.Email,
       Nickname = user.Nickname,
       Token = token,
-      ExpiresAt = DateTime.UtcNow.AddHours(_jwtSettings.ExpirationHours)
+      ExpiresAt = DateTime.UtcNow.AddHours(_jwtSettings.ExpirationHours),
+      LobbyHost = _lobbyServerSettings.Host,
+      LobbyPort = _lobbyServerSettings.Port
     };
   }
 
