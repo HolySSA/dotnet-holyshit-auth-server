@@ -48,8 +48,10 @@ public static class ServiceCollectionExtensions
     services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
     var jwtSettings = configuration.GetSection("JwtSettings").Get<JwtSettings>()
       ?? throw new InvalidOperationException("JwtSettings configuration is missing");
-    
-    services.AddScoped<IAuthService, AuthService>(); // 인증(회원가입/로그인) 서비스 등록
+    // 로비 서버 설정 등록
+    services.Configure<LobbyServerSettings>(configuration.GetSection("LobbyServerSettings"));
+    // 인증(회원가입/로그인) 서비스 등록
+    services.AddScoped<IAuthService, AuthService>();
     
     services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
     {
