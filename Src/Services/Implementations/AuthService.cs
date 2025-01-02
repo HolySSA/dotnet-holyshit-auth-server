@@ -46,21 +46,44 @@ public class AuthService : IAuthService
     // 비밀번호 해시
     var passwordHash = HashPassword(request.Password);
 
-    // 유저 생성
-    var user = new User
+    using var transaction = await _context.Database.BeginTransactionAsync();
+    try
     {
-      Email = request.Email,
-      Nickname = request.Nickname,
-      PasswordHash = passwordHash,
-      IsActive = true,
-      CreatedAt = DateTime.UtcNow
-    };
+      // 유저 생성
+      var user = new User
+      {
+        Email = request.Email,
+        Nickname = request.Nickname,
+        PasswordHash = passwordHash
+      };
+      // DB 유저 저장
+      await _context.Users.AddAsync(user);
+      await _context.SaveChangesAsync();
 
-    // DB 유저 저장
-    await _context.Users.AddAsync(user);
-    await _context.SaveChangesAsync();
+      // 기본 캐릭터 부여 (RED-빨갱이)
+      var defaultCharacter = new UserCharacter
+      {
+        UserId = user.Id,
+        CharacterType = CharacterType.RED,
+        PlayCount = 0,
+        WinCount = 0,
+        PurchasedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow
+      };
 
-    return true;
+      await _context.UserCharacters.AddAsync(defaultCharacter);
+      await _context.SaveChangesAsync();
+
+      await transaction.CommitAsync();
+      return true;
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"회원가입 에러: {ex.Message}");
+
+      await transaction.RollbackAsync();
+      return false;
+    }
   }
 
   public async Task<LoginResponseDto> LoginAsync(LoginRequestDto request)
@@ -78,7 +101,7 @@ public class AuthService : IAuthService
     {
       // 실패 시 로그인 시도 횟수 증가 - Redis
       await _cacheService.SetAsync(loginAttemptKey, (attempts ?? 0) + 1, TimeSpan.FromMinutes(RedisConstants.LOGIN_LOCKOUT_MINUTES));
-      
+
       throw new Exception("이메일 또는 비밀번호가 올바르지 않습니다.");
     }
 
@@ -102,7 +125,7 @@ public class AuthService : IAuthService
     // 클라이언트에 응답
     return new LoginResponseDto
     {
-      Email = user.Email,
+      UserId = user.Id,
       Nickname = user.Nickname,
       Token = token,
       ExpiresAt = DateTime.UtcNow.AddHours(_jwtSettings.ExpirationHours),
@@ -145,19 +168,18 @@ public class AuthService : IAuthService
   public async Task LogoutAsync(int userId)
   {
     // 사용자 조회
-    var user = await _context.Users.FindAsync(userId)
-        ?? throw new Exception("User not found");
+    var user = await _context.Users.FindAsync(userId) ?? throw new Exception("User not found");
 
     // Redis에서 유저 세션 삭제
     await _cacheService.RemoveAsync(string.Format(RedisConstants.SESSION_KEY_FORMAT, user.Email));
-    
+
     // 현재 토큰을 블랙리스트에 추가
     var sessionKey = string.Format(RedisConstants.SESSION_KEY_FORMAT, user.Email);
     var session = await _cacheService.GetAsync<dynamic>(sessionKey);
     if (session != null)
     {
       await _cacheService.SetAsync(
-        string.Format(RedisConstants.BLACKLIST_KEY_FORMAT, session.Token), 
+        string.Format(RedisConstants.BLACKLIST_KEY_FORMAT, session.Token),
         true,
         TimeSpan.FromHours(_jwtSettings.ExpirationHours)
       );

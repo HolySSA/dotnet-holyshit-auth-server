@@ -32,10 +32,10 @@ public class AuthController : ControllerBase
     {
       _logger.LogInformation("Register attempt for user: {Email}", request.Email);
       
-      await _authService.RegisterAsync(request);
+      var result = await _authService.RegisterAsync(request);
       
       _logger.LogInformation("Register successful for user: {Email}", request.Email);
-      return Ok(new RegisterResponseDto { Success = true, Message = "회원가입에 성공하셨습니다!" });
+      return Ok(new RegisterResponseDto { Success = result, Message = "회원가입에 성공하셨습니다!" });
     }
     catch (Exception ex)
     {

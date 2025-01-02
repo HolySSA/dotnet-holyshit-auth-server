@@ -21,8 +21,8 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequestDto>
     RuleFor(x => x.Password).Cascade(CascadeMode.Stop)
       .NotEmpty().WithMessage("비밀번호를 입력해주세요")
       .MinimumLength(8).WithMessage("비밀번호는 최소 8자 이상이어야 합니다.")
-      .Matches(@"[a-z]").WithMessage("소문자를 포함해야 합니다.")
-      .Matches(@"[0-9]").WithMessage("숫자를 포함해야 합니다.")
-      .Matches(@"[!@#$%^&*]").WithMessage("특수문자를 포함해야 합니다.");
+      .Matches(@"[a-z]").WithMessage("비밀번호는 소문자를 포함해야 합니다.")
+      .Matches(@"[0-9]").WithMessage("비밀번호는 숫자를 포함해야 합니다.")
+      .Matches(@"[!@#$%^&*]").WithMessage("비밀번호는 특수문자를 포함해야 합니다.");
   }
 }
