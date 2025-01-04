@@ -10,6 +10,7 @@ using LoginServer.Utils;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using StackExchange.Redis;
 
 namespace LoginServer.Extensions;
 
@@ -22,7 +23,7 @@ public static class ServiceCollectionExtensions
   {
     services.AddDbContext<ApplicationDbContext>(options =>
       options.UseNpgsql(configuration.GetSection("PostgresSettings:ConnectionString").Value));
-        
+
     return services;
   }
 
@@ -31,14 +32,15 @@ public static class ServiceCollectionExtensions
   /// </summary>
   public static IServiceCollection AddRedisCache(this IServiceCollection services, IConfiguration configuration)
   {
-    services.AddStackExchangeRedisCache(options =>
+    // Redis 연결 설정
+    services.AddSingleton<IConnectionMultiplexer>(sp =>
     {
-      options.Configuration = configuration.GetSection("RedisSettings:ConnectionString").Value;
-      options.InstanceName = configuration.GetSection("RedisSettings:InstanceName").Value;
+      var redisConfig = ConfigurationOptions.Parse(configuration.GetSection("RedisSettings:ConnectionString").Value!);
+      return ConnectionMultiplexer.Connect(redisConfig);
     });
-    
-    services.AddScoped<ICacheService, RedisCacheService>(); // Redis 캐시 서비스 등록
-    
+
+    // Redis 캐시 서비스 등록
+    services.AddScoped<ICacheService, RedisCacheService>();
     return services;
   }
 
@@ -52,7 +54,7 @@ public static class ServiceCollectionExtensions
     services.Configure<LobbyServerSettings>(configuration.GetSection("LobbyServerSettings"));
     // 인증(회원가입/로그인) 서비스 등록
     services.AddScoped<IAuthService, AuthService>();
-    
+
     services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
     {
       options.TokenValidationParameters = new TokenValidationParameters
@@ -67,7 +69,7 @@ public static class ServiceCollectionExtensions
         ClockSkew = TimeSpan.Zero
       };
     });
-        
+
     return services;
   }
 
@@ -84,13 +86,13 @@ public static class ServiceCollectionExtensions
       options.SuppressModelStateInvalidFilter = true; // 기본 모델 검증 동작 비활성화
     });
 
-    services.AddFluentValidationAutoValidation(config => 
+    services.AddFluentValidationAutoValidation(config =>
     {
-        config.DisableDataAnnotationsValidation = true; // 기본 ASP.NET Core의 모델 검증을 비활성화
+      config.DisableDataAnnotationsValidation = true; // 기본 ASP.NET Core의 모델 검증을 비활성화
     });
-    
+
     services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>(); // FluentValidation 검증기 등록
-    
+
     return services;
   }
 }

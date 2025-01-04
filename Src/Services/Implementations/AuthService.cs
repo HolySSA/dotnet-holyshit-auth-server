@@ -116,11 +116,10 @@ public class AuthService : IAuthService
     var token = GenerateJwtToken(user);
 
     // 유저 세션 저장 - Redis
-    await _cacheService.SetAsync(
-      string.Format(RedisConstants.SESSION_KEY_FORMAT, user.Email), // 키
-      new { Token = token, LastActivity = DateTime.UtcNow }, // 값
-      TimeSpan.FromHours(_jwtSettings.ExpirationHours) // 만료 시간
-    );
+    var sessionKey = string.Format(RedisConstants.SESSION_KEY_FORMAT, user.Email);
+    await _cacheService.HashSetAsync(sessionKey, "Token", token);
+    await _cacheService.HashSetAsync(sessionKey, "LastActivity", DateTime.UtcNow.ToString("O"));
+    await _cacheService.SetHashExpirationAsync(sessionKey, TimeSpan.FromHours(_jwtSettings.ExpirationHours));
 
     // 클라이언트에 응답
     return new LoginResponseDto

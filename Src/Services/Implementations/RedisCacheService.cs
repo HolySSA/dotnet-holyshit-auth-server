@@ -1,16 +1,19 @@
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Distributed;
 using LoginServer.Services.Interfaces;
+using StackExchange.Redis;
 
 namespace LoginServer.Services.Implementations;
 
 public class RedisCacheService : ICacheService
 {
-  private readonly IDistributedCache _cache;
+  private readonly IConnectionMultiplexer _redis;
+    private readonly IDatabase _db;
 
-  public RedisCacheService(IDistributedCache cache)
+  public RedisCacheService(IConnectionMultiplexer redis)
   {
-    _cache = cache;
+    _redis = redis;
+    _db = redis.GetDatabase();
   }
 
   /// <summary>
@@ -18,8 +21,8 @@ public class RedisCacheService : ICacheService
   /// </summary>
   public async Task<T?> GetAsync<T>(string key)
   {
-    var value = await _cache.GetStringAsync(key);
-    return value == null ? default : JsonSerializer.Deserialize<T>(value);
+    var value = await _db.StringGetAsync(key);
+    return value.IsNull ? default : JsonSerializer.Deserialize<T>(value!);
   }
 
   /// <summary>
@@ -27,14 +30,8 @@ public class RedisCacheService : ICacheService
   /// </summary>
   public async Task SetAsync<T>(string key, T value, TimeSpan? expirationTime = null)
   {
-    var options = new DistributedCacheEntryOptions();
-    if (expirationTime.HasValue)
-    {
-      options.AbsoluteExpirationRelativeToNow = expirationTime;
-    }
-
     var jsonValue = JsonSerializer.Serialize(value);
-    await _cache.SetStringAsync(key, jsonValue, options);
+    await _db.StringSetAsync(key, jsonValue, expirationTime);
   }
 
   /// <summary>
@@ -42,7 +39,7 @@ public class RedisCacheService : ICacheService
   /// </summary>
   public async Task RemoveAsync(string key)
   {
-    await _cache.RemoveAsync(key);
+    await _db.KeyDeleteAsync(key);
   }
 
   /// <summary>
@@ -50,6 +47,36 @@ public class RedisCacheService : ICacheService
   /// </summary>
   public async Task<bool> ExistsAsync(string key)
   {
-    return await GetAsync<string>(key) != null;
+    return await _db.KeyExistsAsync(key);
+  }
+
+  public async Task<bool> HashSetAsync(string key, string field, string value)
+  {
+    return await _db.HashSetAsync(key, field, value);
+  }
+
+  public async Task<string?> HashGetAsync(string key, string field)
+  {
+    var value = await _db.HashGetAsync(key, field);
+    return value.HasValue ? value.ToString() : null;
+  }
+
+  public async Task<Dictionary<string, string>> HashGetAllAsync(string key)
+  {
+    var hashEntries = await _db.HashGetAllAsync(key);
+    return hashEntries.ToDictionary(
+      he => he.Name.ToString(),
+      he => he.Value.ToString()
+    );
+  }
+
+  public async Task HashDeleteAsync(string key, string field)
+  {
+    await _db.HashDeleteAsync(key, field);
+  }
+
+  public async Task SetHashExpirationAsync(string key, TimeSpan expirationTime)
+  {
+    await _db.KeyExpireAsync(key, expirationTime);
   }
 }
