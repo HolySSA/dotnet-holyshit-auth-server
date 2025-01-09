@@ -31,16 +31,16 @@ public class AuthController : ControllerBase
     try
     {
       _logger.LogInformation("Register attempt for user: {Email}", request.Email);
-      
+
       var result = await _authService.RegisterAsync(request);
-      
+
       _logger.LogInformation("Register successful for user: {Email}", request.Email);
       return Ok(new RegisterResponseDto { Success = result, Message = "회원가입에 성공하셨습니다!" });
     }
     catch (Exception ex)
     {
       _logger.LogWarning("Register failed for user: {Email}, Reason: {Message}", request.Email, ex.Message);
-          
+
       return BadRequest(new ErrorResponseDto { Message = ex.Message });
     }
   }
@@ -57,17 +57,17 @@ public class AuthController : ControllerBase
     try
     {
       _logger.LogInformation("Login attempt for user: {Email}", request.Email);
-      
+
       var result = await _authService.LoginAsync(request);
-      
+
       _logger.LogInformation("Login successful for user: {Email}", request.Email);
       return Ok(result);
     }
     catch (Exception ex)
     {
-      _logger.LogWarning("Login failed for user: {Email}, Reason: {Message}", 
+      _logger.LogWarning("Login failed for user: {Email}, Reason: {Message}",
           request.Email, ex.Message);
-          
+
       return BadRequest(new ErrorResponseDto { Message = ex.Message });
     }
   }
@@ -86,17 +86,14 @@ public class AuthController : ControllerBase
     try
     {
       // 토큰에서 사용자 ID 추출
-      var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-          ?? throw new Exception("User ID not found in token");
-          
+      var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? throw new Exception("User ID not found in token");
       var userId = int.Parse(userIdClaim);
-      
       _logger.LogInformation("Logout attempt for user ID: {UserId}", userId);
-      
+
       await _authService.LogoutAsync(userId);
-      
+
       _logger.LogInformation("Logout successful for user ID: {UserId}", userId);
-      return Ok(new { message = "Logged out successfully" });
+      return Ok(new { message = "로그아웃" });
     }
     catch (Exception ex)
     {

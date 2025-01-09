@@ -11,4 +11,11 @@ public class LoginResponseDto
   public DateTime ExpiresAt { get; set; } // 토큰 만료 시간
   public string LobbyHost { get; set; } = string.Empty; // 로비 호스트
   public int LobbyPort { get; set; } // 로비 포트
+  public LoginResult Result { get; set; } // 로그인 결과
+}
+
+public enum LoginResult 
+{
+  Success = 0,
+  DuplicateLogin = 1,
 }

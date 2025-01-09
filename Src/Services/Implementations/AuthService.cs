@@ -101,8 +101,25 @@ public class AuthService : IAuthService
     {
       // 실패 시 로그인 시도 횟수 증가 - Redis
       await _cacheService.SetAsync(loginAttemptKey, (attempts ?? 0) + 1, TimeSpan.FromMinutes(RedisConstants.LOGIN_LOCKOUT_MINUTES));
-
       throw new Exception("이메일 또는 비밀번호가 올바르지 않습니다.");
+    }
+
+    // 중복 로그인 체크
+    var sessionKey = string.Format(RedisConstants.SESSION_KEY_FORMAT, user.Email);
+    var existingSession = await _cacheService.HashGetAllAsync(sessionKey);
+    if (existingSession.Count > 0)
+    {
+      // 중복 로그인 응답 반환
+      return new LoginResponseDto
+      {
+        UserId = user.Id,
+        Nickname = user.Nickname,
+        Token = string.Empty,
+        ExpiresAt = DateTime.UtcNow.AddHours(_jwtSettings.ExpirationHours),
+        LobbyHost = _lobbyServerSettings.Host,
+        LobbyPort = _lobbyServerSettings.Port,
+        Result = LoginResult.DuplicateLogin
+      };
     }
 
     // 로그인 성공 시 시도 횟수 제거 - Redis
@@ -116,7 +133,6 @@ public class AuthService : IAuthService
     var token = GenerateJwtToken(user);
 
     // 유저 세션 저장 - Redis
-    var sessionKey = string.Format(RedisConstants.SESSION_KEY_FORMAT, user.Email);
     await _cacheService.HashSetAsync(sessionKey, "Token", token);
     await _cacheService.HashSetAsync(sessionKey, "LastActivity", DateTime.UtcNow.ToString("O"));
     await _cacheService.SetHashExpirationAsync(sessionKey, TimeSpan.FromHours(_jwtSettings.ExpirationHours));
@@ -129,7 +145,8 @@ public class AuthService : IAuthService
       Token = token,
       ExpiresAt = DateTime.UtcNow.AddHours(_jwtSettings.ExpirationHours),
       LobbyHost = _lobbyServerSettings.Host,
-      LobbyPort = _lobbyServerSettings.Port
+      LobbyPort = _lobbyServerSettings.Port,
+      Result = LoginResult.Success
     };
   }
 
