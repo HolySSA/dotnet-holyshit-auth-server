@@ -8,7 +8,7 @@ namespace LoginServer.Services.Implementations;
 public class RedisCacheService : ICacheService
 {
   private readonly IConnectionMultiplexer _redis;
-    private readonly IDatabase _db;
+  private readonly IDatabase _db;
 
   public RedisCacheService(IConnectionMultiplexer redis)
   {
