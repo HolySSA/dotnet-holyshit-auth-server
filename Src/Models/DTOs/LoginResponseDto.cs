@@ -14,7 +14,7 @@ public class LoginResponseDto
   public LoginResult Result { get; set; } // 로그인 결과
 }
 
-public enum LoginResult 
+public enum LoginResult
 {
   Success = 0,
   DuplicateLogin = 1,

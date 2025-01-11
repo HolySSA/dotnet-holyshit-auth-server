@@ -17,9 +17,9 @@ public class FluentValidationFilter : IAsyncActionFilter
         .Select(e => e.ErrorMessage)
         .FirstOrDefault();
 
-      context.Result = new BadRequestObjectResult(new ErrorResponseDto 
-      { 
-        Message = errors ?? "Validation failed" 
+      context.Result = new BadRequestObjectResult(new ErrorResponseDto
+      {
+        Message = errors ?? "Validation failed"
       });
       return;
     }
