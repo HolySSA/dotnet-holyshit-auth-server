@@ -25,6 +25,7 @@ app.Lifetime.ApplicationStopping.Register(async () =>
         
         // Redis 키 패턴으로 삭제
         await cacheService.RemoveByPatternAsync("gameserver:*");  // 게임 서버
+        await cacheService.RemoveAsync("game_servers");
         await cacheService.RemoveByPatternAsync("user:*"); // 유저
         await cacheService.RemoveByPatternAsync("session:*"); // 세션
         
