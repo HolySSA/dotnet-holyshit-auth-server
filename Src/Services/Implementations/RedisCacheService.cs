@@ -43,6 +43,20 @@ public class RedisCacheService : ICacheService
   }
 
   /// <summary>
+  /// 패턴으로 데이터 삭제
+  /// </summary>
+  public async Task RemoveByPatternAsync(string pattern)
+  {
+    var server = _redis.GetServer(_redis.GetEndPoints().First());
+    var keys = server.Keys(pattern: pattern);
+    
+    foreach (var key in keys)
+    {
+      await _db.KeyDeleteAsync(key);
+    }
+  }
+
+  /// <summary>
   /// 해당 키-데이터 존재 여부
   /// </summary>
   public async Task<bool> ExistsAsync(string key)
