@@ -188,6 +188,7 @@ public class AuthService : IAuthService
 
     // Redis에서 유저 세션 삭제
     await _cacheService.RemoveAsync(string.Format(RedisConstants.SESSION_KEY_FORMAT, user.Email));
+    await _cacheService.RemoveAsync($"user:{userId}");
 
     // 현재 토큰을 블랙리스트에 추가
     var sessionKey = string.Format(RedisConstants.SESSION_KEY_FORMAT, user.Email);
