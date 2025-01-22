@@ -22,13 +22,13 @@ app.Lifetime.ApplicationStopping.Register(async () =>
     {
         using var scope = app.Services.CreateScope();
         var cacheService = scope.ServiceProvider.GetRequiredService<ICacheService>();
-        
+
         // Redis 키 패턴으로 삭제
         await cacheService.RemoveByPatternAsync("gameserver:*");  // 게임 서버
         await cacheService.RemoveAsync("game_servers");
         await cacheService.RemoveByPatternAsync("user:*"); // 유저
         await cacheService.RemoveByPatternAsync("session:*"); // 세션
-        
+
         app.Logger.LogInformation("Redis cache cleaned up successfully");
     }
     catch (Exception ex)

@@ -60,8 +60,7 @@ public static class ServiceCollectionExtensions
       options.TokenValidationParameters = new TokenValidationParameters
       {
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.ASCII.GetBytes(jwtSettings.SecretKey)),
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(jwtSettings.SecretKey)),
         ValidateIssuer = true,
         ValidateAudience = true,
         ValidIssuer = jwtSettings.Issuer,

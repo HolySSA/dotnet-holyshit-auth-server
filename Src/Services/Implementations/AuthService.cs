@@ -186,6 +186,9 @@ public class AuthService : IAuthService
     // 사용자 조회
     var user = await _context.Users.FindAsync(userId) ?? throw new Exception("User not found");
 
+    // 캐릭터 통계 DB 업데이트
+    await UpdateCharacterStatsToDbAsync(userId);
+
     // Redis에서 유저 세션 삭제
     await _cacheService.RemoveAsync(string.Format(RedisConstants.SESSION_KEY_FORMAT, user.Email));
     await _cacheService.RemoveAsync($"user:{userId}");
@@ -239,5 +242,40 @@ public class AuthService : IAuthService
       // 해시 형식이 잘못되었거나 다른 오류가 발생한 경우
       return false;
     }
+  }
+
+  private async Task UpdateCharacterStatsToDbAsync(int userId)
+  {
+    // Redis에서 캐릭터 통계 데이터 가져오기
+    var characterStatsKey = $"user:{userId}:characters";
+    var characterStats = await _cacheService.HashGetAllAsync(characterStatsKey);
+
+    if (characterStats.Count == 0) return;
+
+    // DB에서 유저의 캐릭터 데이터 가져오기
+    var userCharacters = await _context.UserCharacters.Where(uc => uc.UserId == userId).ToListAsync();
+
+    foreach (var stat in characterStats)
+    {
+      // Redis 데이터 파싱
+      var characterType = int.Parse(stat.Key);
+      var values = stat.Value.Split(':');
+      var playCount = int.Parse(values[0]);
+      var winCount = int.Parse(values[1]);
+
+      // DB의 해당 캐릭터 찾기
+      var character = userCharacters.FirstOrDefault(uc => uc.UserId == userId && (int)uc.CharacterType == characterType);
+
+      if (character != null)
+      {
+        // 통계 업데이트
+        character.PlayCount = playCount;
+        character.WinCount = winCount;
+        character.UpdatedAt = DateTime.UtcNow;
+      }
+    }
+
+    // DB 변경사항 저장
+    await _context.SaveChangesAsync();
   }
 }
